@@ -1,0 +1,18 @@
+#define MQTT_CUSTOMER "viktak"
+#define MQTT_PROJECT  "spiti"
+
+#define HARDWARE_ID "Sonoff basic v1.0"
+#define HARDWARE_VERSION "1.0"
+#define SOFTWARE_ID "Sonoff"
+#define FIRMWARE_VERSION "1.0"
+
+#define JSON_SETTINGS_SIZE (JSON_OBJECT_SIZE(9) + 200)
+#define JSON_MQTT_COMMAND_SIZE 300
+
+#define CONNECTION_STATUS_LED_GPIO 13           //  Built-in green LED
+
+#define RELAY_GPIO 12
+
+//  Home coordinates
+#define LATITUDE 37.9908997
+#define LONGITUDE 23.70332
