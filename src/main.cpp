@@ -689,10 +689,13 @@ void handleNotFound(){
 void SendHeartbeat(){
   if (PSclient.connected()){
 
+    TimeChangeRule *tcr;        // Pointer to the time change rule
+    time_t localTime = myTZ.toLocal(now(), &tcr);
+
     const size_t capacity = JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(6) + 180;
     StaticJsonDocument<capacity> doc;
 
-    doc["Time"] = DateTimeToString(now());
+    doc["Time"] = DateTimeToString(localTime);
     doc["Node"] = ESP.getChipId();
     doc["Freeheap"] = ESP.getFreeHeap();
     doc["FriendlyName"] = appConfig.friendlyName;
@@ -718,6 +721,7 @@ void SendHeartbeat(){
   needsHeartbeat = false;
 }
 
+
 void mqtt_callback(const MQTT::Publish& pub) {
 
   Serial.print("Topic:\t\t");
@@ -731,17 +735,6 @@ void mqtt_callback(const MQTT::Publish& pub) {
     DeserializationError error = deserializeJson(doc, pub.payload_string());
 
     if (error) {
-  /*
-          Serial.println("Failed to parse incoming string.");
-          Serial.println(error.c_str());
-          for (size_t i = 0; i < 10; i++) {
-            digitalWrite(CONNECTION_STATUS_LED_GPIO, !digitalRead(CONNECTION_STATUS_LED_GPIO));
-            delay(50);
-          }
-          return;
-  */
-
-
     // It's NOT a JSON string
       if ( pub.payload_string() == NULL){
         if (PSclient.connected()) {
@@ -829,7 +822,6 @@ void mqtt_callback(const MQTT::Publish& pub) {
       }
     }
     
-
     //  POWER
     if (doc.containsKey("power")){
       if (doc["power"] == "on"){
