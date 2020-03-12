@@ -1,7 +1,7 @@
 #define __debugSettings
 #include "includes.h"
 
-char defaultSSID[16];
+char defaultSSID[48];
 
 //  Web server
 ESP8266WebServer server(80);
@@ -46,7 +46,7 @@ void LogEvent(int Category, int ID, String Title, String Data){
 
     Serial.println(msg);
 
-    PSclient.publish(MQTT::Publish(MQTT_CUSTOMER + String("/") + MQTT_PROJECT + String("/") + String(ESP.getChipId()) + "/log/", msg ).set_qos(0));
+    PSclient.publish(MQTT::Publish(MQTT_CUSTOMER + String("/") + MQTT_PROJECT + String("/") + String(ESP.getChipId()) + "/log", msg ).set_qos(0));
   }
 }
 
@@ -715,7 +715,7 @@ void SendHeartbeat(){
 
     serializeJson(doc, myJsonString);
 
-    PSclient.publish(MQTT::Publish(MQTT_CUSTOMER + String("/") + MQTT_PROJECT + "/" + appConfig.mqttTopic + "/STATE", myJsonString ).set_qos(0));
+    PSclient.publish(MQTT::Publish(MQTT_CUSTOMER + String("/") + MQTT_PROJECT + "/" + appConfig.mqttTopic + "/HEARTBEAT", myJsonString ).set_qos(0));
   }
 
   needsHeartbeat = false;
@@ -872,6 +872,8 @@ void mqtt_callback(const MQTT::Publish& pub) {
 
 
 
+
+
 void setup() {
   delay(1); //  Needed for PlatformIO serial monitor
   Serial.begin(115200);
@@ -888,9 +890,6 @@ void setup() {
   Serial.println("Software version: " + FirmwareVersionString);
   Serial.println();
 
-  sprintf(defaultSSID, "ESP-%u", ESP.getChipId());
-  WiFi.hostname(defaultSSID);
-
   //  File system
   if (!SPIFFS.begin()){
     Serial.println("Error: Failed to initialize the filesystem!");
@@ -903,7 +902,8 @@ void setup() {
     Serial.println("Config loaded.");
   }
 
-  //  OneWire
+  sprintf(defaultSSID, "%s-%u", appConfig.mqttTopic, ESP.getChipId());
+  WiFi.hostname(defaultSSID);
 
   //  GPIO
   pinMode(CONNECTION_STATUS_LED_GPIO, OUTPUT);
@@ -1053,7 +1053,7 @@ void loop(){
             digitalWrite(CONNECTION_STATUS_LED_GPIO, HIGH);
             delay(950);
           }
-          if (attempt == 31) {
+          if (attempt > WIFI_CONNECTION_TIMEOUT) {
             Serial.println();
             Serial.println("Could not connect to WiFi");
             delay(100);
@@ -1098,18 +1098,11 @@ void loop(){
         if (!PSclient.connected()) {
           PSclient.set_server(appConfig.mqttServer, appConfig.mqttPort);
 
-          String msg = "{";
-          msg += "\"Node\":" + (String)ESP.getChipId() + ",";
-          msg += "\"Category\":1,";
-          msg += "\"ID\":2,";
-          msg += "\"Title\":\"Node offline\",";
-          msg += "\"Data\":\"";
-          msg += DateTimeToString(now());
-          msg += "\"}";
-
-          if (PSclient.connect("ESP-" + String(ESP.getChipId()), MQTT_CUSTOMER + String("/") + MQTT_PROJECT + String("/") + String(ESP.getChipId()) + "/log", 0, true, msg )){
+          if (PSclient.connect("ESP-" + String(ESP.getChipId()), MQTT_CUSTOMER + String("/") + MQTT_PROJECT + String("/") + appConfig.mqttTopic + "/STATE", 0, true, "offline" )){
             PSclient.set_callback(mqtt_callback);
-            PSclient.subscribe(MQTT_CUSTOMER + String("/") + MQTT_PROJECT + String("/") + appConfig.mqttTopic + String("/POWER"), 0);
+            PSclient.subscribe(MQTT_CUSTOMER + String("/") + MQTT_PROJECT + String("/") + appConfig.mqttTopic + "/cmnd", 0);
+
+            PSclient.publish(MQTT::Publish(MQTT_CUSTOMER + String("/") + MQTT_PROJECT + String("/") + appConfig.mqttTopic + "/STATE", "online" ).set_qos(0).set_retain(true));
             LogEvent(EVENTCATEGORIES::Conn, 1, "Node online", WiFi.localIP().toString());
           }
         }
