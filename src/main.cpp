@@ -1,7 +1,6 @@
 #define __debugSettings
 #include "includes.h"
 
-char defaultSSID[48];
 
 //  Web server
 ESP8266WebServer server(80);
@@ -12,19 +11,17 @@ PubSubClient PSclient(wclient);
 
 //  Timers and their flags
 os_timer_t heartbeatTimer;
-
-//  Flags
-bool needsHeartbeat = false;
-
 //  Other global variables
 config appConfig;
 char timeout = 30;
 bool isAccessPoint = false;
 bool isAccessPointCreated = false;
 
-bool ntpInitialized = false;
 enum CONNECTION_STATE connectionState;
 
+//  Flags
+bool needsHeartbeat = false;
+bool ntpInitialized = false;
 
 WiFiUDP Udp;
 
@@ -515,6 +512,8 @@ void handleGeneralSettings() {
       PSclient.disconnect();
 
     saveSettings();
+    ESP.reset();
+
   }
 
   fs::File f = SPIFFS.open("/pageheader.html", "r");
@@ -687,6 +686,8 @@ void handleNotFound(){
 }
 
 void SendHeartbeat(){
+
+
   if (PSclient.connected()){
 
     TimeChangeRule *tcr;        // Pointer to the time change rule
@@ -731,148 +732,69 @@ void mqtt_callback(const MQTT::Publish& pub) {
   if (pub.payload_string()!=NULL)
     Serial.println(pub.payload_string());
 
-    StaticJsonDocument<JSON_MQTT_COMMAND_SIZE> doc;
-    DeserializationError error = deserializeJson(doc, pub.payload_string());
+  StaticJsonDocument<JSON_MQTT_COMMAND_SIZE> doc;
+  DeserializationError error = deserializeJson(doc, pub.payload_string());
 
-    if (error) {
-    // It's NOT a JSON string
-      if ( pub.payload_string() == NULL){
-        if (PSclient.connected()) {
-          const size_t capacity = JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(6) + 180;
-          StaticJsonDocument<capacity> doc;
+  if (error) {
+    Serial.println("Failed to parse incoming string.");
+    Serial.println(error.c_str());
+    for (size_t i = 0; i < 10; i++) {
+      digitalWrite(CONNECTION_STATUS_LED_GPIO, !digitalRead(CONNECTION_STATUS_LED_GPIO));
+      delay(50);
+    }
+    return;
+  }
 
-          if ( digitalRead(RELAY_GPIO) == 1)
-            doc["POWER"] = "on";
-          else
-            doc["POWER"] = "off";
-          String myJsonString;
+  #ifdef __debugSettings
+  serializeJsonPretty(doc,Serial);
+  Serial.println();
+  #endif
 
-          serializeJson(doc, myJsonString);
 
-          #ifdef __debugSettings
-          serializeJsonPretty(doc,Serial);
-          Serial.println();
-          #endif
+  //  reset
+  if (doc.containsKey("reset")){
+    LogEvent(EVENTCATEGORIES::MqttMsg, 1, "Reset", "");
+    defaultSettings();
+    ESP.reset();
+  }
 
-          PSclient.publish(MQTT::Publish(MQTT_CUSTOMER + String("/") + MQTT_PROJECT + "/" + appConfig.mqttTopic + "/RESULT", myJsonString ).set_qos(0));
-        }
-      }
+  //  restart
+  if (doc.containsKey("restart")){
+    LogEvent(EVENTCATEGORIES::MqttMsg, 2, "Restart", "");
+    ESP.reset();
+  }
 
-      if ( pub.payload_string() == "on"){
-        digitalWrite(RELAY_GPIO, HIGH);
-        LogEvent(EVENTCATEGORIES::Relay, 1, "Relay ON", "");
-        if (PSclient.connected()) {
-          const size_t capacity = JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(6) + 180;
-          StaticJsonDocument<capacity> doc;
+  
 
-          doc["POWER"] = "on";
-          String myJsonString;
+  String sCommand;
+  
+  //  Relay0
+  if (doc.containsKey("POWER")){
+    const char* myKey = doc["POWER"];
+    sCommand = myKey;
+    sCommand.toUpperCase();
 
-          serializeJson(doc, myJsonString);
-
-          #ifdef __debugSettings
-          serializeJsonPretty(doc,Serial);
-          Serial.println();
-          #endif
-
-          PSclient.publish(MQTT::Publish(MQTT_CUSTOMER + String("/") + MQTT_PROJECT + "/" + appConfig.mqttTopic + "/RESULT", myJsonString ).set_qos(0));
-        }
-      }
-
-      if ( pub.payload_string() == "off"){
-        digitalWrite(RELAY_GPIO, LOW);
-        LogEvent(EVENTCATEGORIES::Relay, 1, "Relay OFF", "");
-        if (PSclient.connected()) {
-          const size_t capacity = JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(6) + 180;
-          StaticJsonDocument<capacity> doc;
-
-          doc["POWER"] = "off";
-
-          #ifdef __debugSettings
-          serializeJsonPretty(doc,Serial);
-          Serial.println();
-          #endif
-
-          String myJsonString;
-
-          serializeJson(doc, myJsonString);
-
-          PSclient.publish(MQTT::Publish(MQTT_CUSTOMER + String("/") + MQTT_PROJECT + "/" + appConfig.mqttTopic + "/RESULT", myJsonString ).set_qos(0));
-        }
+    if ( sCommand == "ON" ){
+      digitalWrite(RELAY_GPIO, HIGH);
+      if (PSclient.connected()){
+        PSclient.publish(MQTT::Publish(MQTT_CUSTOMER + String("/") + MQTT_PROJECT + String("/") + appConfig.mqttTopic + "/RESULT", "on" ).set_qos(0));
       }
     }
-    else
-    {
-      #ifdef __debugSettings
-      serializeJsonPretty(doc,Serial);
-      Serial.println();
-      #endif
-
-      //  reset
-      if (doc.containsKey("reset")){
-        LogEvent(EVENTCATEGORIES::MqttMsg, 1, "Reset", "");
-        defaultSettings();
-        ESP.reset();
-      }
-
-      //  restart
-      if (doc.containsKey("restart")){
-        LogEvent(EVENTCATEGORIES::MqttMsg, 2, "Restart", "");
-        ESP.reset();
+    else if ( sCommand == "OFF" ){
+      digitalWrite(RELAY_GPIO, LOW);
+      if (PSclient.connected()){
+        PSclient.publish(MQTT::Publish(MQTT_CUSTOMER + String("/") + MQTT_PROJECT + String("/") + appConfig.mqttTopic + "/RESULT", "off" ).set_qos(0));
       }
     }
-    
-    //  POWER
-    if (doc.containsKey("power")){
-      if (doc["power"] == "on"){
-        digitalWrite(RELAY_GPIO, HIGH);
-        LogEvent(EVENTCATEGORIES::Relay, 1, "Relay ON", "");
-        if (PSclient.connected()) {
-          const size_t capacity = JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(6) + 180;
-          StaticJsonDocument<capacity> doc;
-
-          doc["Channel0"] = "on";
-
-          #ifdef __debugSettings
-          serializeJsonPretty(doc,Serial);
-          Serial.println();
-          #endif
-
-          String myJsonString;
-
-          serializeJson(doc, myJsonString);
-
-          PSclient.publish(MQTT::Publish(MQTT_CUSTOMER + String("/") + MQTT_PROJECT + "/" + appConfig.mqttTopic + "/STATE", myJsonString ).set_qos(0));
-        }
-      }
-      else
-      {
-        digitalWrite(RELAY_GPIO, LOW);
-        LogEvent(EVENTCATEGORIES::Relay, 2, "Relay OFF", "");
-        if (PSclient.connected()) {
-          const size_t capacity = JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(6) + 180;
-          StaticJsonDocument<capacity> doc;
-
-          doc["Channel0"] = "off";
-
-          #ifdef __debugSettings
-          serializeJsonPretty(doc,Serial);
-          Serial.println();
-          #endif
-
-          String myJsonString;
-
-          serializeJson(doc, myJsonString);
-
-          PSclient.publish(MQTT::Publish(MQTT_CUSTOMER + String("/") + MQTT_PROJECT + "/" + appConfig.mqttTopic + "/STATE", myJsonString ).set_qos(0));
-        }
+    else if ( sCommand == "TOGGLE" ){
+      digitalWrite(RELAY_GPIO, !digitalRead(RELAY_GPIO));
+      if (PSclient.connected()){
+        PSclient.publish(MQTT::Publish(MQTT_CUSTOMER + String("/") + MQTT_PROJECT + String("/") + appConfig.mqttTopic + "/RESULT", digitalRead(RELAY_GPIO)?"on":"off" ).set_qos(0));
       }
     }
   }
 
-
-
-
+}
 
 void setup() {
   delay(1); //  Needed for PlatformIO serial monitor
@@ -905,7 +827,8 @@ void setup() {
   sprintf(defaultSSID, "%s-%u", appConfig.mqttTopic, ESP.getChipId());
   WiFi.hostname(defaultSSID);
 
-  //  GPIO
+  //  GPIOs
+  //  outputs
   pinMode(CONNECTION_STATUS_LED_GPIO, OUTPUT);
   digitalWrite(CONNECTION_STATUS_LED_GPIO, HIGH);
 
@@ -1115,6 +1038,7 @@ void loop(){
           SendHeartbeat();
           needsHeartbeat = false;
         }
+
 
         // Set next connection state
         connectionState = STATE_CHECK_WIFI_CONNECTION;
