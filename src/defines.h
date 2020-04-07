@@ -12,7 +12,3 @@
 #define CONNECTION_STATUS_LED_GPIO 13           //  Built-in green LED
 
 #define RELAY_GPIO 12
-
-//  Home coordinates
-#define LATITUDE 37.9908997
-#define LONGITUDE 23.70332
