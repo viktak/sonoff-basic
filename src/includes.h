@@ -16,14 +16,11 @@
 #include <ArduinoOTA.h>
 #include <ESP8266WebServer.h>
 
-#define FS_NO_GLOBALS   //  This is needed for FS.h and SD.h together
-#include <FS.h>
+#include <LittleFS.h>
 
 #include <PubSubClient.h>
 #include <EEPROM.h>
 #include <ArduinoJson.h>
-#include <OneWire.h>
-#include <DallasTemperature.h>
 
 #include <TimeLib.h>
 #include <Time.h>

@@ -20,9 +20,3 @@ struct sunData_t{
   time_t Sunrise;
   time_t Sunset;
 };
-
-struct thermometer{
-  DeviceAddress deviceAddress;
-  float measuredTemperatureC;
-  String FriendlyName;
-};

@@ -13,7 +13,6 @@ PubSubClient PSclient(wclient);
 os_timer_t heartbeatTimer;
 //  Other global variables
 config appConfig;
-char timeout = 30;
 bool isAccessPoint = false;
 bool isAccessPointCreated = false;
 
@@ -52,7 +51,7 @@ void heartbeatTimerCallback(void *pArg) {
 }
 
 bool loadSettings(config& data) {
-  fs::File configFile = SPIFFS.open("/config.json", "r");
+  File configFile = LittleFS.open("/config.json", "r");
   if (!configFile) {
     Serial.println("Failed to open config file");
     LogEvent(EVENTCATEGORIES::System, 1, "FS failure", "Failed to open config file.");
@@ -177,7 +176,7 @@ bool saveSettings() {
   Serial.println();
   #endif
 
-  fs::File configFile = SPIFFS.open("/config.json", "w");
+  File configFile = LittleFS.open("/config.json", "w");
   if (!configFile) {
     Serial.println("Failed to open config file for writing");
     LogEvent(System, 4, "FS failure", "Failed to open config file for writing.");
@@ -325,12 +324,12 @@ void handleLogin(){
     LogEvent(EVENTCATEGORIES::Login, 2, "Failure", "User name: " + server.arg("username") + " - Password: " + server.arg("password"));
   }
 
-  fs::File f = SPIFFS.open("/pageheader.html", "r");
+  File f = LittleFS.open("/pageheader.html", "r");
   String headerString;
   if (f.available()) headerString = f.readString();
   f.close();
 
-  f = SPIFFS.open("/login.html", "r");
+  f = LittleFS.open("/login.html", "r");
 
   String s, htmlString;
 
@@ -356,12 +355,12 @@ void handleRoot() {
     return;
   }
 
-  fs::File f = SPIFFS.open("/pageheader.html", "r");
+  File f = LittleFS.open("/pageheader.html", "r");
   String headerString;
   if (f.available()) headerString = f.readString();
   f.close();
 
-  f = SPIFFS.open("/index.html", "r");
+  f = LittleFS.open("/index.html", "r");
 
   String FirmwareVersionString = String(FIRMWARE_VERSION) + " @ " + String(__TIME__) + " - " + String(__DATE__);
 
@@ -393,7 +392,7 @@ void handleStatus() {
      return;
   }
 
-  fs::File f = SPIFFS.open("/pageheader.html", "r");
+  File f = LittleFS.open("/pageheader.html", "r");
   String headerString;
   if (f.available()) headerString = f.readString();
   f.close();
@@ -403,7 +402,7 @@ void handleStatus() {
 
   String s;
 
-  f = SPIFFS.open("/status.html", "r");
+  f = LittleFS.open("/status.html", "r");
 
   String htmlString, ds18b20list;
 
@@ -516,12 +515,12 @@ void handleGeneralSettings() {
 
   }
 
-  fs::File f = SPIFFS.open("/pageheader.html", "r");
+  File f = LittleFS.open("/pageheader.html", "r");
   String headerString;
   if (f.available()) headerString = f.readString();
   f.close();
 
-  f = SPIFFS.open("/generalsettings.html", "r");
+  f = LittleFS.open("/generalsettings.html", "r");
 
   String s, htmlString, timezoneslist;
 
@@ -588,12 +587,12 @@ void handleNetworkSettings() {
     }
   }
 
-  fs::File f = SPIFFS.open("/pageheader.html", "r");
+  File f = LittleFS.open("/pageheader.html", "r");
   String headerString;
   if (f.available()) headerString = f.readString();
   f.close();
 
-  f = SPIFFS.open("/networksettings.html", "r");
+  f = LittleFS.open("/networksettings.html", "r");
   String s, htmlString, wifiList;
 
   byte numberOfNetworks = WiFi.scanNetworks();
@@ -640,12 +639,12 @@ void handleTools() {
     }
   }
 
-  fs::File f = SPIFFS.open("/pageheader.html", "r");
+  File f = LittleFS.open("/pageheader.html", "r");
   String headerString;
   if (f.available()) headerString = f.readString();
   f.close();
 
-  f = SPIFFS.open("/tools.html", "r");
+  f = LittleFS.open("/tools.html", "r");
 
   String s, htmlString;
 
@@ -813,7 +812,7 @@ void setup() {
   Serial.println();
 
   //  File system
-  if (!SPIFFS.begin()){
+  if (!LittleFS.begin()){
     Serial.println("Error: Failed to initialize the filesystem!");
   }
 
@@ -969,7 +968,7 @@ void loop(){
           // Initialize iteration counter
           char attempt = 0;
 
-          while ((WiFi.status() != WL_CONNECTED) && (attempt++ < timeout)) {
+          while ((WiFi.status() != WL_CONNECTED) && (attempt++ < WIFI_CONNECTION_TIMEOUT)) {
             digitalWrite(CONNECTION_STATUS_LED_GPIO, LOW);
             Serial.print(".");
             delay(50);
