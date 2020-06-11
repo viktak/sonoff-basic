@@ -1,3 +1,6 @@
+#ifndef DEFINES_H
+#define DEFINES_H
+
 #define MQTT_CUSTOMER "viktak"
 #define MQTT_PROJECT  "spiti"
 
@@ -12,3 +15,5 @@
 #define CONNECTION_STATUS_LED_GPIO 13           //  Built-in green LED
 
 #define RELAY_GPIO 12
+
+#endif

@@ -1,3 +1,6 @@
+#ifndef INCLUDES_H
+#define INCLUDES_H
+
 #include "defines.h"
 #include "../../_common/defines.h"
 
@@ -30,3 +33,5 @@
 #include "structs.h"
 
 #include "user_interface.h"
+
+#endif
