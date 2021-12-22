@@ -6,8 +6,7 @@
 
 #define HARDWARE_ID "Sonoff basic v1.0"
 #define HARDWARE_VERSION "1.0"
-#define SOFTWARE_ID "Sonoff"
-#define FIRMWARE_VERSION "1.1"
+#define FIRMWARE_ID "Sonoff"
 
 #define DEBUG_SPEED 921600
 

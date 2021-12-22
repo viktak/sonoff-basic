@@ -15,8 +15,8 @@ struct config{
 
 };
 
-
-struct sunData_t{
-  time_t Sunrise;
-  time_t Sunset;
+struct digitalInput{
+  char gpio;
+  char32_t buttonPattern;
+  BUTTON_STATES buttonState;
 };
